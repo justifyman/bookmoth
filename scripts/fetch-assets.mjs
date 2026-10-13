@@ -1,4 +1,4 @@
-// Downloads the CC0 texture sets and HDRI Lumen uses from Poly Haven into public/assets.
+// Downloads the CC0 texture sets and HDRI Bookmoth uses from Poly Haven into public/assets.
 // Run with: node scripts/fetch-assets.mjs
 import { mkdir, writeFile, access } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
@@ -7,7 +7,12 @@ import { fileURLToPath } from 'node:url'
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', 'public', 'assets')
 const RES = '2k'
 
-const textures = ['brown_leather', 'book_pattern', 'rough_linen', 'wood_table_001', 'wood_table_worn', 'hessian_230']
+const textures = [
+  // covers
+  'brown_leather', 'leather_white', 'book_pattern', 'rough_linen', 'velour_velvet', 'floral_jacquard',
+  // surfaces under the book
+  'wood_table_001', 'wood_table_worn', 'dark_wood', 'oak_veneer_01', 'american_walnut_veneer', 'marble_01', 'slate_floor_03', 'hessian_230', 'poly_wool_herringbone',
+]
 const maps = { Diffuse: 'albedo', nor_gl: 'normal', arm: 'arm' }
 const hdris = ['wooden_lounge']
 

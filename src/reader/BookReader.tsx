@@ -148,7 +148,7 @@ export const BookReader = forwardRef<ModeHandle, ModeProps>(function BookReader(
       {size && !flat && (
         <SceneBoundary onError={() => goFlat('The 3D book isn’t available on this device, so here is a simpler one.')}>
           <BookScene
-            settings={{ cover: appearance.cover, paper: appearance.paper, desk: appearance.desk, quality, open: !!pagination }}
+            settings={{ cover: appearance.cover, paper: appearance.paper, desk: appearance.desk, quality, open: !!pagination, night: appearance.night }}
             feed={feed}
             apiRef={api}
             instantOpen={reduce || sceneReady}
@@ -158,7 +158,7 @@ export const BookReader = forwardRef<ModeHandle, ModeProps>(function BookReader(
         </SceneBoundary>
       )}
       {size && flat && pagination && layout && (
-        <Book2D pagination={pagination} content={content} layout={layout} title={title} paper={appearance.paper} spread={spread} focus={focus} size={size} reducedMotion={reduce} onStep={step} onToggleChrome={onToggleChrome} />
+        <Book2D pagination={pagination} content={content} layout={layout} title={title} paper={appearance.paper} night={appearance.night} spread={spread} focus={focus} size={size} reducedMotion={reduce} onStep={step} onToggleChrome={onToggleChrome} />
       )}
       {waiting && (
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-5" role="status">

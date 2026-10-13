@@ -1,30 +1,30 @@
 @import 'tailwindcss';
 
-/* Calm, warm colours for the library and menus. The book itself brings its own. */
+/* The room. The library is a bookcase standing against a wall: white plaster, pale
+   oak and daylight. These colours also serve the menus; the reading modes bring
+   their own looks. */
 :root {
-  --bg: #f5f0e6;
-  --surface: #fffdf8;
+  --bg: #efe9dd;
+  --surface: #f8f4ea;
   --raised: #ffffff;
-  --ink: #2a241c;
-  --muted: #776d5f;
-  --line: #e4dccb;
+  --ink: #26221b;
+  --muted: #6a6254;
+  --line: #d8cfbd;
   --accent: #8a4b2a;
   --accent-ink: #fffaf2;
   --danger: #a33a2a;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #14110e;
-    --surface: #1d1915;
-    --raised: #26211b;
-    --ink: #ece3d3;
-    --muted: #a0947f;
-    --line: #322b23;
-    --accent: #e0a36a;
-    --accent-ink: #1d1509;
-    --danger: #e8806e;
-  }
+  --wall: linear-gradient(115deg, rgb(255 255 255 / 0.5), transparent 40%, rgb(120 100 70 / 0.06)), #efe9dd;
+  --wall-light: radial-gradient(ellipse 95% 70% at 30% -15%, rgb(255 255 255 / 0.8), transparent 70%), radial-gradient(ellipse at 50% 130%, transparent 62%, rgb(80 60 30 / 0.14));
+  --wood: url(/assets/textures/oak_veneer_01/1k/albedo.jpg);
+  --wood-tint: rgb(255 248 236);
+  /* the scanned grain runs top to bottom: boards want it turned lengthways */
+  --board-turn: 90deg;
+  --post-turn: 0deg;
+  --shade: 0.15;
+  --label: #33271a;
+  --panel: rgb(255 255 255 / 0.7);
+  --panel-edge: rgb(255 255 255 / 0.9);
+  color-scheme: light;
 }
 
 @theme {
@@ -79,8 +79,427 @@ button {
   animation: shimmer 1.6s linear infinite;
 }
 
+/* ---------------------------------------------------------------------------
+   The wall
+   --------------------------------------------------------------------------- */
+
+.wall {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  background: var(--wall);
+}
+
+/* the light in the room: a lamp or a window above, and corners falling into shade */
+.wall::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--wall-light);
+}
+
+/* A quiet panel for controls that sit on the wall. */
+.glass {
+  background: var(--panel);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  border: 1px solid var(--panel-edge);
+  box-shadow: 0 8px 24px -14px rgb(0 0 0 / 0.5);
+}
+
+/* Dust drifting in the light. */
+.mote {
+  position: absolute;
+  bottom: -2vh;
+  z-index: 1;
+  width: var(--size);
+  height: var(--size);
+  border-radius: 50%;
+  background: #fff3d6;
+  opacity: 0;
+  filter: blur(0.5px);
+  animation: mote var(--time) linear var(--wait) infinite;
+}
+
+@keyframes mote {
+  0% {
+    transform: translate(0, 0);
+    opacity: 0;
+  }
+  12%,
+  80% {
+    opacity: var(--glint);
+  }
+  100% {
+    transform: translate(var(--sway), -108vh);
+    opacity: 0;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Wood, and the bookcase built from it
+   --------------------------------------------------------------------------- */
+
+/* A piece of wood. The scanned grain is laid on a large turned sheet behind the
+   piece, so boards and uprights can each have it running lengthways. */
+.wood {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.wood::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  left: 50%;
+  top: 50%;
+  width: 240vmax;
+  height: 240vmax;
+  transform: translate(-50%, -50%) rotate(var(--turn, 0deg));
+  background:
+    linear-gradient(var(--wood-tint), var(--wood-tint)),
+    var(--wood) 0 0 / 420px;
+  background-blend-mode: multiply;
+}
+
+.bookcase {
+  position: relative;
+}
+
+/* the whole piece throws a soft shadow on the wall */
+.bookcase::before {
+  content: '';
+  position: absolute;
+  inset: 24px -4px 0;
+  z-index: -1;
+  box-shadow: 0 18px 60px 8px rgb(0 0 0 / calc(var(--shade) * 0.95));
+}
+
+.bookcase-crown {
+  --turn: var(--board-turn);
+  height: 30px;
+  margin: 0 -12px;
+  border-radius: 5px 5px 2px 2px;
+  box-shadow:
+    inset 0 2px 0 rgb(255 255 255 / 0.22),
+    inset 0 -9px 10px -6px rgb(0 0 0 / 0.55);
+}
+
+.bookcase-body {
+  position: relative;
+  display: flex;
+}
+
+.bookcase-post {
+  --turn: var(--post-turn);
+  width: 22px;
+  flex: none;
+  box-shadow:
+    inset 2px 0 0 rgb(255 255 255 / 0.14),
+    inset -3px 0 6px rgb(0 0 0 / 0.4);
+}
+
+.bookcase-post:last-child {
+  box-shadow:
+    inset -2px 0 0 rgb(255 255 255 / 0.1),
+    inset 3px 0 6px rgb(0 0 0 / 0.45);
+}
+
+.bookcase-shelves {
+  min-width: 0;
+  flex: 1;
+}
+
+/* one compartment: the back board in shadow, books standing on the shelf below */
+.shelf {
+  position: relative;
+  padding: 34px 14px 0;
+}
+
+.shelf-back {
+  --turn: var(--post-turn);
+  position: absolute;
+  inset: 0;
+}
+
+/* the back of the case sits deep in shade, darkest under the shelf above */
+.shelf-back::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(rgb(0 0 0 / calc(var(--shade) + 0.22)), rgb(0 0 0 / calc(var(--shade) * 0.55)) 26%, rgb(0 0 0 / calc(var(--shade) * 0.5))),
+    linear-gradient(90deg, rgb(0 0 0 / 0.34), transparent 7%, transparent 93%, rgb(0 0 0 / 0.34));
+}
+
+.shelf-row {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  align-items: end;
+  justify-items: center;
+}
+
+/* the shelf board, seen from the front: a lit top surface and a thick front edge */
+.shelf-board {
+  --turn: var(--board-turn);
+  height: 58px;
+  box-shadow:
+    inset 0 9px 0 rgb(255 255 255 / 0.13),
+    inset 0 10px 0 rgb(0 0 0 / 0.3),
+    inset 0 -6px 8px -4px rgb(0 0 0 / 0.5),
+    0 12px 14px -4px rgb(0 0 0 / calc(var(--shade) + 0.2));
+}
+
+.shelf-edge {
+  position: relative;
+  margin: 0 -14px;
+}
+
+.shelf-labels {
+  position: absolute;
+  inset: 10px 14px 0;
+  display: grid;
+  align-items: center;
+  color: var(--label);
+}
+
+.bookcase-plinth {
+  --turn: var(--board-turn);
+  height: 46px;
+  margin: 0 -6px;
+  box-shadow:
+    inset 0 2px 0 rgb(255 255 255 / 0.16),
+    inset 0 -14px 16px -8px rgb(0 0 0 / 0.55);
+}
+
+/* the floor the bookcase stands on, running off to both sides */
+.floor {
+  --turn: 0deg;
+  height: 88px;
+  box-shadow: inset 0 26px 30px -12px rgb(0 0 0 / 0.7);
+}
+
+.floor::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(rgb(0 0 0 / 0.45), rgb(0 0 0 / 0.15));
+}
+
+/* a single shelf fixed to the wall, for the book being read */
+.ledge {
+  --turn: var(--board-turn);
+  height: 18px;
+  border-radius: 2px;
+  box-shadow:
+    inset 0 3px 0 rgb(255 255 255 / 0.18),
+    inset 0 -5px 6px -3px rgb(0 0 0 / 0.5),
+    0 14px 18px -6px rgb(0 0 0 / calc(var(--shade) + 0.15));
+}
+
+/* ---------------------------------------------------------------------------
+   A book standing on the shelf. It is a real box: front board, block of pages,
+   back board. Pointing at it turns it to face you and swings the cover open.
+   --------------------------------------------------------------------------- */
+
+.sbook {
+  --depth: 26px;
+  position: relative;
+  display: block;
+  width: var(--bw);
+  aspect-ratio: 2 / 3;
+  perspective: 1100px;
+  text-align: left;
+}
+
+.sbook-body {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  transform: rotateY(-27deg);
+  transform-origin: 50% 100%;
+  transition: transform 0.55s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+/* where the book meets the shelf */
+.sbook::after {
+  content: '';
+  position: absolute;
+  left: 4%;
+  right: -6%;
+  bottom: -5px;
+  height: 12px;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 0.55);
+  filter: blur(6px);
+  transition: opacity 0.4s;
+}
+
+.sbook-back,
+.sbook-cover,
+.sbook-page,
+.sbook-edge {
+  position: absolute;
+}
+
+.sbook-back {
+  inset: 0;
+  border-radius: 2px;
+  background: #241a14;
+  transform: translateZ(calc(var(--depth) / -2));
+}
+
+/* the fore-edge: hundreds of page edges */
+.sbook-edge {
+  top: 4px;
+  bottom: 4px;
+  right: 3px;
+  width: var(--depth);
+  transform-origin: right center;
+  transform: translateZ(calc(var(--depth) / 2)) rotateY(-90deg);
+  background: repeating-linear-gradient(90deg, #efe6d2 0 1px, #d8cbb0 1px 2px, #f6eedd 2px 3px);
+  box-shadow: inset 0 0 6px rgb(60 40 10 / 0.35);
+}
+
+/* the first page of the book, under the cover */
+.sbook-page {
+  inset: 4px 3px 4px 1px;
+  overflow: hidden;
+  transform: translateZ(calc(var(--depth) / 2 - 1.5px));
+  padding: 9% 9% 8% 11%;
+  font-size: calc(var(--bw) * 0.045);
+  line-height: 1.38;
+  box-shadow: inset 9px 0 10px -6px rgb(60 40 10 / 0.4);
+}
+
+.sbook-cover {
+  inset: 0;
+  transform-style: preserve-3d;
+  transform-origin: left center;
+  transform: translateZ(calc(var(--depth) / 2));
+  transition: transform 0.7s cubic-bezier(0.3, 0.6, 0.2, 1);
+}
+
+.sbook-cover > * {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+}
+
+/* the inside of the front board, with its pasted-down endpaper */
+.sbook-inside {
+  transform: rotateY(180deg);
+  border-radius: 2px;
+  background: linear-gradient(90deg, rgb(0 0 0 / 0.28), transparent 18%), #d9cdb2;
+  box-shadow: inset 0 0 0 3px rgb(0 0 0 / 0.16);
+}
+
+@media (hover: hover) {
+  .sbook-slot:hover,
+  .sbook-slot:focus-within {
+    z-index: 5;
+  }
+
+  .sbook:hover .sbook-body,
+  .sbook:focus-visible .sbook-body {
+    transform: rotateY(-5deg) translateZ(190px) translateY(-4px);
+    transition-delay: 0.08s;
+  }
+
+  .sbook:hover .sbook-cover,
+  .sbook:focus-visible .sbook-cover {
+    transform: translateZ(calc(var(--depth) / 2)) rotateY(-152deg);
+    transition-delay: 0.16s;
+  }
+
+  .sbook:hover::after,
+  .sbook:focus-visible::after {
+    opacity: 0.5;
+  }
+}
+
+/* a bookmark ribbon hangs from a book that has been started */
+.ribbon {
+  position: absolute;
+  left: 58%;
+  bottom: -14px;
+  width: 7px;
+  height: 22px;
+  background: linear-gradient(#b3261e, #7c1712);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%);
+  transform: translateZ(0);
+}
+
+/* The moth: wings that beat a few times, then rest. */
+.moth-wing {
+  transform-box: fill-box;
+  animation: flutter 5.5s ease-in-out infinite;
+}
+
+.moth-wing.left {
+  transform-origin: right center;
+}
+
+.moth-wing.right {
+  transform-origin: left center;
+}
+
+@keyframes flutter {
+  0%,
+  62%,
+  100% {
+    transform: scaleX(1);
+  }
+  66%,
+  74%,
+  82% {
+    transform: scaleX(0.45);
+  }
+  70%,
+  78%,
+  86% {
+    transform: scaleX(1);
+  }
+}
+
+.bob {
+  animation: bob 5s ease-in-out infinite alternate;
+}
+
+@keyframes bob {
+  to {
+    transform: translateY(-8px) rotate(2deg);
+  }
+}
+
+/* Things arriving on the page settle upwards into place. */
+.rise {
+  animation: rise 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .skeleton {
+  .skeleton,
+  .moth-wing,
+  .bob,
+  .rise {
     animation: none;
+  }
+  .mote {
+    display: none;
+  }
+  .sbook-body,
+  .sbook-cover {
+    transition: none;
   }
 }

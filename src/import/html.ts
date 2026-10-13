@@ -1,7 +1,7 @@
 import type { Block, Run } from '../model/document'
 
 // Turns a parsed HTML tree (from an EPUB chapter or a converted Word file) into
-// Lumen's blocks. Publisher styling is dropped on purpose: only structure and
+// Bookmoth's blocks. Publisher styling is dropped on purpose: only structure and
 // emphasis survive, so every mode can set the text its own way.
 
 const SKIP = new Set(['script', 'style', 'head', 'template', 'noscript', 'nav', 'iframe', 'object', 'audio', 'video', 'form', 'button', 'input', 'select', 'textarea'])

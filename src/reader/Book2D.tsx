@@ -19,6 +19,8 @@ interface Props {
   layout: PageLayout
   title: string
   paper: PaperStyle
+  /** night light: a dark room with one lamp over the book */
+  night: boolean
   /** the spread to show, and which page of it on narrow screens */
   spread: number
   focus: 'both' | 'left' | 'right'
@@ -28,7 +30,7 @@ interface Props {
   onToggleChrome: () => void
 }
 
-function Sheet({ index, p }: { index: number; p: Omit<Props, 'spread' | 'focus' | 'size' | 'onStep' | 'onToggleChrome' | 'reducedMotion'> }) {
+function Sheet({ index, p }: { index: number; p: Omit<Props, 'spread' | 'focus' | 'size' | 'night' | 'onStep' | 'onToggleChrome' | 'reducedMotion'> }) {
   const look = PAPER[p.paper]
   const ink = legibleInk(look.ink, look.base)
   const left = index % 2 === 0
@@ -67,7 +69,7 @@ function Sheet({ index, p }: { index: number; p: Omit<Props, 'spread' | 'focus' 
   )
 }
 
-export function Book2D({ spread, focus, size, reducedMotion, onStep, onToggleChrome, ...p }: Props) {
+export function Book2D({ spread, focus, size, night, reducedMotion, onStep, onToggleChrome, ...p }: Props) {
   const single = focus !== 'both'
   const { width, height } = p.layout
   const total = p.pagination.pages.length + 1
@@ -94,7 +96,7 @@ export function Book2D({ spread, focus, size, reducedMotion, onStep, onToggleChr
   const half = 'absolute top-0 h-full w-1/2'
 
   return (
-    <div className="absolute inset-0 flex touch-pan-y items-center justify-center overflow-hidden select-none" style={{ background: 'radial-gradient(ellipse at 40% 30%, #3a2a1d, #120c08 75%)' }} {...gestures}>
+    <div className="absolute inset-0 flex touch-pan-y items-center justify-center overflow-hidden select-none" style={{ background: night ? '#050404' : 'radial-gradient(ellipse at 40% 30%, #3a2a1d, #120c08 75%)' }} {...gestures}>
       <div style={{ width: width * (single ? 1 : 2) * scale, height: height * scale }}>
         <div className="relative origin-top-left shadow-[0_18px_50px_rgba(0,0,0,.6)]" style={{ width: width * (single ? 1 : 2), height, transform: `scale(${scale})`, perspective: width * 5 }}>
           {single ? (
@@ -129,6 +131,8 @@ export function Book2D({ spread, focus, size, reducedMotion, onStep, onToggleChr
           )}
         </div>
       </div>
+      {/* the lamp: warm in the middle of the pages, falling away into the dark */}
+      {night && <div className="pointer-events-none absolute inset-0" style={{ background: 'radial-gradient(ellipse 62% 70% at 46% 42%, rgba(255,170,90,.16), rgba(40,18,4,.3) 55%, rgba(0,0,0,.86) 100%)', mixBlendMode: 'multiply' }} />}
     </div>
   )
 }

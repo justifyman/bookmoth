@@ -2,7 +2,7 @@ import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } fro
 import { AnimatePresence, motion } from 'framer-motion'
 import { AppearancePanel, Choices, MODES } from '../appearance/AppearancePanel'
 import { DEFAULT_APPEARANCE } from '../appearance/settings'
-import type { Appearance } from '../appearance/settings'
+import type { Appearance, ReadingMode } from '../appearance/settings'
 import { db, getSetting, setSetting } from '../db/schema'
 import type { BookRecord } from '../db/schema'
 import { blockText, compareAnchors, progressOf } from '../model/document'
@@ -16,11 +16,19 @@ import type { Location, ModeHandle } from './modes'
 // The reading screen: loads a book, shows it in the chosen mode, keeps the reader's
 // place and this book's look saved, and brings the menus up when asked.
 
-// the 3D scene is by far the heaviest part of Lumen, so it is fetched when first wanted
+// the 3D scene is by far the heaviest part of Bookmoth, so it is fetched when first wanted
 const BookReader = lazy(() => import('./BookReader').then((m) => ({ default: m.BookReader })))
 
 const bar = 'bg-stone-950/85 text-stone-100 backdrop-blur'
 const round = 'rounded-full px-3 py-2 text-sm hover:bg-white/10 disabled:opacity-30'
+
+/** The text that starts at a place in the book, for previews. */
+function textFrom(content: BookContent | null, anchor: Anchor, length: number) {
+  const blocks = content?.chapters[anchor.chapter]?.blocks ?? []
+  let text = ''
+  for (let b = anchor.block; b < blocks.length && text.length < length; b++) text += `${blockText(blocks[b]).slice(b === anchor.block ? anchor.offset : 0)} `
+  return text.slice(0, length).trim()
+}
 
 function Loading({ label }: { label: string }) {
   return (
@@ -58,7 +66,11 @@ export function Reader({ bookId, onClose }: { bookId: string; onClose: () => voi
       if (!alive) return
       if (b.status === 'ready' && !c) return setBook(null)
       // a book keeps its own look; a new one starts with the look used most recently
-      setAppearance({ ...DEFAULT_APPEARANCE, ...(b.appearance ?? last) })
+      const look = { ...DEFAULT_APPEARANCE, ...(b.appearance ?? last) }
+      // the reading mode is the one chosen for this book, else the one chosen last anywhere, else the 3D book
+      if (!b.modeChosen) look.mode = await getSetting<ReadingMode>('mode.last', DEFAULT_APPEARANCE.mode)
+      if (!alive) return
+      setAppearance(look)
       setAnchor(b.anchor)
       setContent(c)
       setBook(b)
@@ -74,16 +86,16 @@ export function Reader({ bookId, onClose }: { bookId: string; onClose: () => voi
 
   const atEnd = !!location && location.pages > 1 && location.page >= location.pages - 1
   const progress = content ? (atEnd ? 1 : progressOf(content, anchor)) : 0
-  const place = useRef<{ anchor: Anchor; progress: number } | null>(null)
+  const place = useRef<{ anchor: Anchor; progress: number; excerpt: string } | null>(null)
   const savePlace = useCallback(() => {
     const p = place.current
     place.current = null
-    if (p) void db.books.update(bookId, { anchor: p.anchor, progress: p.progress })
+    if (p) void db.books.update(bookId, { anchor: p.anchor, progress: p.progress, excerpt: p.excerpt })
   }, [bookId])
   useEffect(() => {
     if (!content || !book) return
     if (compareAnchors(anchor, book.anchor) === 0 && progress === book.progress) return
-    place.current = { anchor, progress }
+    place.current = { anchor, progress, excerpt: textFrom(content, anchor, 240) }
     const t = setTimeout(savePlace, 400)
     return () => clearTimeout(t)
   }, [anchor, progress, content, book, savePlace])
@@ -105,6 +117,10 @@ export function Reader({ bookId, onClose }: { bookId: string; onClose: () => voi
     void db.books.update(bookId, { appearance: next })
     void setSetting('appearance.last', next)
   }
+  const rememberMode = (mode: ReadingMode) => {
+    void db.books.update(bookId, { modeChosen: true })
+    void setSetting('mode.last', mode)
+  }
   const change = useCallback(
     (patch: Partial<Appearance>) => {
       setAppearance((current) => {
@@ -117,6 +133,7 @@ export function Reader({ bookId, onClose }: { bookId: string; onClose: () => voi
         lastChange.current = { keys, at: now }
         if (!same) setPast((p) => [...p.slice(-30), current])
         persist(next)
+        if (next.mode !== current.mode) rememberMode(next.mode)
         return next
       })
     },
@@ -130,6 +147,7 @@ export function Reader({ bookId, onClose }: { bookId: string; onClose: () => voi
     lastChange.current = { keys: '', at: 0 }
     setAppearance(previous)
     persist(previous)
+    if (previous.mode !== appearance.mode) rememberMode(previous.mode)
   }
   const isDefault = (Object.keys(DEFAULT_APPEARANCE) as (keyof Appearance)[]).every((k) => k === 'mode' || appearance[k] === DEFAULT_APPEARANCE[k])
 
@@ -141,12 +159,29 @@ export function Reader({ bookId, onClose }: { bookId: string; onClose: () => voi
   }, [])
   // menus slip away after a few quiet seconds
   const [touched, setTouched] = useState(0)
+  // the pointer is resting on a menu bar, so it stays
+  const [held, setHeld] = useState(false)
   useEffect(() => {
-    if (!chrome || panel || contents || !book || book.status !== 'ready') return
+    if (!chrome || panel || contents || held || !book || book.status !== 'ready') return
     const t = setTimeout(() => setChrome(false), touched ? 5000 : 3200)
     return () => clearTimeout(t)
-  }, [chrome, panel, contents, touched, book])
+  }, [chrome, panel, contents, held, touched, book])
   const touch = () => setTouched((n) => n + 1)
+
+  // a mouse moving to the top or bottom edge of the screen brings the menus up
+  const lastEdge = useRef(0)
+  const summon = (e: React.PointerEvent) => {
+    if (e.pointerType !== 'mouse' || e.buttons) return
+    const box = e.currentTarget.getBoundingClientRect()
+    const y = e.clientY - box.top
+    if (y > 64 && y < box.height - 76) return
+    const now = Date.now()
+    if (now - lastEdge.current < 400) return
+    lastEdge.current = now
+    setChrome(true)
+    touch()
+  }
+  const hold = { onPointerEnter: () => setHeld(true), onPointerLeave: () => setHeld(false) }
 
   const dismissHint = useCallback(() => {
     setHint((h) => {
@@ -192,12 +227,7 @@ export function Reader({ bookId, onClose }: { bookId: string; onClose: () => voi
     return () => window.removeEventListener('keydown', key)
   }, [panel, contents])
 
-  const sample = useMemo(() => {
-    const blocks = content?.chapters[anchor.chapter]?.blocks ?? []
-    let text = ''
-    for (let b = anchor.block; b < blocks.length && text.length < 420; b++) text += `${blockText(blocks[b]).slice(b === anchor.block ? anchor.offset : 0)} `
-    return text.slice(0, 420)
-  }, [content, anchor])
+  const sample = useMemo(() => textFrom(content, anchor, 420), [content, anchor])
 
   if (book === undefined) return <Loading label="Opening your book" />
   if (book === null) {
@@ -221,21 +251,21 @@ export function Reader({ bookId, onClose }: { bookId: string; onClose: () => voi
   const shown = chrome || panel
 
   return (
-    <div className="absolute inset-0 overflow-hidden bg-black">
+    <div className="absolute inset-0 overflow-hidden bg-black" onPointerMove={summon}>
       <Suspense fallback={<Loading label="Getting the book ready" />}>
         <Mode ref={mode} content={content} title={book.title} author={book.author} appearance={appearance} anchor={anchor} onAnchor={onAnchor} onToggleChrome={toggleChrome} onLocation={setLocation} onAppearance={change} />
       </Suspense>
 
-      {/* keyboard and screen-reader users can always reach the menus */}
+      {/* a faint button that is always there, so the menus can never be lost */}
       {!shown && (
-        <button type="button" className="sr-only focus:not-sr-only focus:absolute focus:top-3 focus:left-3 focus:z-40 focus:rounded-full focus:bg-stone-950 focus:px-4 focus:py-2 focus:text-sm focus:text-stone-100" onClick={() => setChrome(true)}>
-          Show menus
+        <button type="button" aria-label="Show menus" title="Menus" className="absolute top-2 right-2 z-10 rounded-full bg-stone-950/40 px-3 py-1.5 font-display text-base text-stone-100 opacity-25 backdrop-blur transition-opacity hover:opacity-100 focus-visible:opacity-100" onClick={() => setChrome(true)}>
+          Aa
         </button>
       )}
 
       <AnimatePresence>
         {shown && (
-          <motion.header key="top" initial={{ y: -16, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -16, opacity: 0 }} transition={{ duration: 0.16 }} className={`absolute inset-x-0 top-0 z-20 flex items-center gap-1 px-2 py-2 sm:px-3 ${bar}`} onPointerDown={touch} onKeyDown={touch}>
+          <motion.header key="top" initial={{ y: -16, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -16, opacity: 0 }} transition={{ duration: 0.16 }} className={`absolute inset-x-0 top-0 z-20 flex items-center gap-1 px-2 py-2 sm:px-3 ${bar}`} onPointerDown={touch} onKeyDown={touch} {...hold}>
             <button
               type="button"
               className={`${round} shrink-0`}
@@ -244,16 +274,20 @@ export function Reader({ bookId, onClose }: { bookId: string; onClose: () => voi
                 onClose()
               }}
             >
-              ‹ Library
+              ‹<span className="max-sm:sr-only"> Library</span>
             </button>
             <div className="min-w-0 flex-1 px-1 max-sm:hidden">
               <p className="truncate font-display text-[17px] leading-tight">{book.title}</p>
               {book.author && <p className="truncate text-[11px] text-stone-400">{book.author}</p>}
             </div>
-            <div className="flex-1 sm:hidden" />
-            <div className="w-[min(17.5rem,56vw)] shrink-0">
+            <div className="min-w-0 flex-1 sm:w-[17.5rem] sm:flex-none">
               <Choices label="Reading mode" value={appearance.mode} options={MODES} onChange={(m) => change({ mode: m })} />
             </div>
+            {appearance.mode === 'book' && (
+              <button type="button" aria-pressed={appearance.night} aria-label="Night light" title="Night light" className={`shrink-0 rounded-full px-3 py-2 text-sm ${appearance.night ? 'bg-amber-100 text-stone-900' : 'hover:bg-white/10'}`} onClick={() => change({ night: !appearance.night })}>
+                <span aria-hidden="true">☾</span>
+              </button>
+            )}
             <button type="button" aria-expanded={panel} className={`${round} shrink-0 ${panel ? 'bg-white/15' : ''}`} onClick={() => (setPanel((p) => !p), setContents(false))}>
               <span aria-hidden="true" className="font-display text-base">
                 Aa
@@ -264,7 +298,7 @@ export function Reader({ bookId, onClose }: { bookId: string; onClose: () => voi
         )}
 
         {chrome && !panel && (
-          <motion.footer key="bottom" initial={{ y: 16, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 16, opacity: 0 }} transition={{ duration: 0.16 }} className={`absolute inset-x-0 bottom-0 z-20 px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:px-4 ${bar}`} onPointerDown={touch} onKeyDown={touch}>
+          <motion.footer key="bottom" initial={{ y: 16, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 16, opacity: 0 }} transition={{ duration: 0.16 }} className={`absolute inset-x-0 bottom-0 z-20 px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:px-4 ${bar}`} onPointerDown={touch} onKeyDown={touch} {...hold}>
             <div className="mx-auto flex max-w-3xl items-center gap-1">
               <button type="button" aria-label={`Previous ${unit.toLowerCase()}`} className={`${round} text-lg`} disabled={!location || location.page <= 0} onClick={() => mode.current?.prev()}>
                 ‹

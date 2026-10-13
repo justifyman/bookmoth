@@ -149,8 +149,8 @@ export function PdfPages({ book, onClose }: { book: BookRecord; onClose: () => v
       {why && (
         <div role="dialog" aria-label="About this book" className={`absolute inset-x-3 top-16 z-30 mx-auto max-w-md rounded-2xl p-5 shadow-2xl ${bar}`}>
           <h2 className="font-display text-xl">This PDF is made of pictures of pages</h2>
-          <p className="mt-2 text-sm text-stone-300">It looks like a scan, so there is no text inside for Lumen to lay out afresh. That is why fonts, themes, the 3D book and the newspaper aren’t available for it.</p>
-          <p className="mt-2 text-sm text-stone-300">You can still read it here page by page, just as it was scanned, and Lumen will remember your page.</p>
+          <p className="mt-2 text-sm text-stone-300">It looks like a scan, so there is no text inside for Bookmoth to lay out afresh. That is why fonts, themes, the 3D book and the newspaper aren’t available for it.</p>
+          <p className="mt-2 text-sm text-stone-300">You can still read it here page by page, just as it was scanned, and Bookmoth will remember your page.</p>
           <div className="mt-4 flex justify-end">
             <button type="button" className="rounded-full bg-amber-100 px-4 py-1.5 text-sm font-medium text-stone-900" onClick={dismissWhy}>
               Read page by page

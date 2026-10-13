@@ -1,9 +1,9 @@
 import Dexie from 'dexie'
 import type { EntityTable } from 'dexie'
-import type { Anchor, BookContent } from '../model/document'
+import type { Anchor, BookContent, Opening } from '../model/document'
 import type { Appearance } from '../appearance/settings'
 
-// Everything Lumen remembers lives in the browser's IndexedDB on this device.
+// Everything Bookmoth remembers lives in the browser's IndexedDB on this device.
 
 export type BookFormat = 'epub' | 'pdf' | 'txt' | 'docx'
 
@@ -42,6 +42,12 @@ export interface BookRecord {
   pdfPage?: number
   /** this book's own look; missing until the reader changes something */
   appearance?: Appearance
+  /** the book's first page, shown when the book is opened on the shelf */
+  opening?: Opening
+  /** a few lines from where the reader stopped, shown on the library's "continue reading" card */
+  excerpt?: string
+  /** the reader picked a reading mode for this book themselves */
+  modeChosen?: boolean
 }
 
 export interface ContentRecord {
@@ -59,6 +65,7 @@ export interface SettingRecord {
   value: unknown
 }
 
+// the database keeps the app's working name from before it was called Bookmoth, so existing libraries carry over
 export const db = new Dexie('lumen') as Dexie & {
   books: EntityTable<BookRecord, 'id'>
   contents: EntityTable<ContentRecord, 'bookId'>

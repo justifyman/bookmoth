@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
 import { motion } from 'framer-motion'
+import { COVERS, DESKS } from '../book3d/looks'
+import type { CoverKind, DeskKind } from '../book3d/looks'
 import { PAPER } from '../book3d/paper'
 import { MIN_TEXT_PX, legibleInk } from './contrast'
 import { FONTS, PRESETS, THEMES } from './settings'
@@ -200,7 +202,7 @@ export function AppearancePanel({ appearance: a, sample, textPx, canUndo, isDefa
           {a.mode === 'plain' && (
             <>
               <Row label="Colours">
-                <Swatches label="Colours" value={a.theme} onChange={(theme) => onChange({ theme })} options={(Object.keys(THEMES) as (keyof typeof THEMES)[]).map((id) => ({ id, label: THEMES[id].label, background: THEMES[id].background, color: THEMES[id].text }))} />
+                <Swatches label="Colours" value={a.theme} onChange={(theme) => onChange({ theme })} options={(Object.keys(THEMES) as (keyof typeof THEMES)[]).map((id) => ({ id, label: THEMES[id].label, background: `radial-gradient(circle at 15% 0%, ${THEMES[id].glows[0]}, transparent 75%), ${THEMES[id].background}`, color: THEMES[id].text }))} />
               </Row>
               <Row label="Margins">
                 <Choices label="Margins" value={a.margins <= 0.05 ? 'narrow' : a.margins >= 0.12 ? 'wide' : 'medium'} options={[['narrow', 'Narrow'], ['medium', 'Medium'], ['wide', 'Wide']]} onChange={(v) => onChange({ margins: v === 'narrow' ? 0.04 : v === 'wide' ? 0.16 : 0.08 })} />
@@ -223,11 +225,15 @@ export function AppearancePanel({ appearance: a, sample, textPx, canUndo, isDefa
         <Group title="Book">
           {a.mode === 'book' ? (
             <>
+              <Row label="Light">
+                <Choices label="Light" value={a.night ? 'night' : 'day'} options={[['day', 'Daylight'], ['night', 'Night light']]} onChange={(v) => onChange({ night: v === 'night' })} />
+                <p className="mt-1.5 text-[11px] text-stone-400">Night light darkens the room and leaves one lamp on the pages.</p>
+              </Row>
               <Row label="Cover">
-                <Swatches label="Cover" value={a.cover} onChange={(cover) => onChange({ cover })} options={[{ id: 'leather', label: 'Leather', background: asset('brown_leather') }, { id: 'cloth', label: 'Cloth', background: asset('book_pattern') }, { id: 'linen', label: 'Linen', background: `linear-gradient(#f2cf9c99, #f2cf9c99), ${asset('rough_linen')}` }]} />
+                <Swatches label="Cover" value={a.cover} onChange={(cover) => onChange({ cover })} options={(Object.keys(COVERS) as CoverKind[]).map((id) => ({ id, label: COVERS[id].label, background: COVERS[id].swatch ? `linear-gradient(${COVERS[id].swatch}d9, ${COVERS[id].swatch}d9), ${asset(COVERS[id].folder)}` : asset(COVERS[id].folder) }))} />
               </Row>
               <Row label="Underneath">
-                <Swatches label="Surface under the book" value={a.desk} onChange={(desk) => onChange({ desk })} options={[{ id: 'wood', label: 'Wood desk', background: asset('wood_table_001') }, { id: 'worn', label: 'Worn wood', background: asset('wood_table_worn') }, { id: 'hessian', label: 'Woven cloth', background: asset('hessian_230') }]} />
+                <Swatches label="Surface under the book" value={a.desk} onChange={(desk) => onChange({ desk })} options={(Object.keys(DESKS) as DeskKind[]).map((id) => ({ id, label: DESKS[id].label, background: asset(DESKS[id].folder) }))} />
               </Row>
               <Row label="Detail">
                 <Choices label="Detail" value={a.quality} options={[['auto', 'Auto'], ['high', 'High'], ['balanced', 'Balanced'], ['light', 'Light']]} onChange={(quality) => onChange({ quality })} />

@@ -3,6 +3,7 @@ import { Choices } from '../appearance/AppearancePanel'
 import { BookScene } from './Scene'
 import type { CoverKind, DeskKind, SceneApi, SceneSettings } from './Scene'
 import { PlaceholderBook } from './pageTexture'
+import { COVERS, DESKS } from './looks'
 import { PLACEHOLDER_AUTHOR, PLACEHOLDER_TITLE } from './placeholder'
 import { QUALITY, detectQuality } from './quality'
 import type { Quality } from './quality'
@@ -25,6 +26,7 @@ export default function Preview() {
     desk: pick<DeskKind>('desk', 'wood'),
     quality: pick<Quality>('quality', detectQuality()),
     open: params.get('open') === '1',
+    night: params.has('night'),
   })
   const [spread, setSpread] = useState(Number(params.get('spread') ?? 84))
   const set = <K extends keyof SceneSettings>(key: K, value: SceneSettings[K]) => setSettings((s) => ({ ...s, [key]: value }))
@@ -55,13 +57,14 @@ export default function Preview() {
       )}
       {!params.has('bare') && (
         <div className="absolute inset-x-0 bottom-0 flex justify-center p-3">
-          <div className="flex w-[26rem] max-w-full flex-col gap-2 rounded-2xl bg-stone-950/80 p-3 text-stone-100 backdrop-blur">
+          <div className="flex w-[44rem] max-w-full flex-col gap-2 overflow-x-auto rounded-2xl bg-stone-950/80 p-3 text-stone-100 backdrop-blur">
             <button type="button" onClick={() => set('open', !settings.open)} className="rounded-full bg-amber-100 px-4 py-1.5 text-sm font-medium text-stone-900">
               {settings.open ? 'Close the book' : 'Open the book'}
             </button>
-            <Choices label="Cover" value={settings.cover} onChange={(v) => set('cover', v)} options={[['leather', 'Leather'], ['cloth', 'Cloth'], ['linen', 'Linen']]} />
-            <Choices label="Paper" value={settings.paper} onChange={(v) => set('paper', v)} options={[['modern', 'Bright'], ['aged', 'Aged'], ['manuscript', 'Manuscript']]} />
-            <Choices label="Desk" value={settings.desk} onChange={(v) => set('desk', v)} options={[['wood', 'Wood'], ['worn', 'Worn wood'], ['hessian', 'Cloth']]} />
+            <Choices label="Cover" value={settings.cover} onChange={(v) => set('cover', v)} options={(Object.keys(COVERS) as CoverKind[]).map((k) => [k, COVERS[k].label])} />
+            <Choices label="Paper" value={settings.paper} onChange={(v) => set('paper', v)} options={(Object.keys(PAPER) as PaperStyle[]).map((k) => [k, PAPER[k].label.replace(/ (paper|vellum)$/, '')])} />
+            <Choices label="Desk" value={settings.desk} onChange={(v) => set('desk', v)} options={(Object.keys(DESKS) as DeskKind[]).map((k) => [k, DESKS[k].label])} />
+            <Choices label="Light" value={settings.night ? 'night' : 'day'} onChange={(v) => set('night', v === 'night')} options={[['day', 'Daylight'], ['night', 'Night light']]} />
             <Choices label="Quality" value={settings.quality} onChange={(v) => set('quality', v)} options={[['high', 'High'], ['balanced', 'Balanced'], ['light', 'Light']]} />
           </div>
         </div>

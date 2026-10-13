@@ -1,4 +1,4 @@
-# Lumen
+# Bookmoth
 
 A web e-book reader that makes reading feel like holding a book. Bring your own EPUB, PDF, DOCX or TXT file and read it as clean pages, as a photorealistic 3D book on a desk, or as a newspaper.
 
@@ -28,7 +28,7 @@ node scripts/fetch-assets.mjs
 ./scripts/compress-assets.sh   # uses sips, so macOS only
 ```
 
-To try Lumen without a file of your own, the empty library offers a sample: *Alice's Adventures in Wonderland* from Project Gutenberg (public domain), in `public/samples`.
+To try Bookmoth without a file of your own, the empty library offers a sample: *Alice's Adventures in Wonderland* from Project Gutenberg (public domain), in `public/samples`.
 
 `/?preview` shows the 3D book on its own with stand-in text, for judging realism. It accepts `cover`, `paper`, `desk`, `quality`, `open=1`, `spread`, `elev`, `zoom` and `bare` in the address.
 
@@ -37,9 +37,12 @@ To try Lumen without a file of your own, the empty library offers a sample: *Ali
 - **Add a book**: drop files anywhere on the library, or use "Add a book". A card appears at once and fills in when the file has been read.
 - **Read**: tap a book. It opens where you left off.
 - **Turn pages**: tap or click the left and right edges, swipe, use the arrow keys, Page Up/Down or Space, or the buttons in the bottom bar. In the 3D book you can also drag a page and let go mid-turn.
-- **Menus**: tap the middle of the page, or press Escape. They hide again after a few seconds.
-- **Switch mode**: Plain, 3D book or Newspaper in the top bar. Your place is kept exactly.
-- **Appearance**: the "Aa" button. Ready-made looks at the top, then Text, Page and Book. Changes apply immediately, Undo steps back, Reset returns to the default look. Each book remembers its own look; a new book starts with the look used most recently.
+- **Menus**: move the mouse to the top or bottom edge of the screen, tap the middle of the page, press Escape, or use the faint "Aa" button in the top right corner. They hide again after a few seconds, and stay while the pointer rests on them.
+- **Switch mode**: Plain, 3D book or Newspaper in the top bar. Your place is kept exactly. Books open as a 3D book until you pick another mode; after that Bookmoth uses the mode you chose last, and each book remembers its own.
+- **Night light**: the moon button in the top bar of the 3D book (also under Appearance → Book). The room goes dark and one warm lamp shines on the pages.
+- **The library is a bookcase.** Books stand on wooden shelves with a label on the shelf edge under each; the one you are reading stands on its own small shelf above. Point at a book and it turns to face you and opens on its first page; move away and it closes. Tap or click it to read.
+- **The room** is white plaster with a pale oak bookcase in daylight.
+- **Appearance**: the "Aa" button. Nine covers, fourteen surfaces under the book, twelve papers, twelve typefaces, and six colour themes for plain mode. Ready-made looks at the top, then Text, Page and Book. Changes apply immediately, Undo steps back, Reset returns to the default look. Each book remembers its own look; a new book starts with the look used most recently.
 
 ## How it is built
 
@@ -58,7 +61,9 @@ src/
     PdfPages.tsx        page-by-page viewer for scanned PDFs
   book3d/               the 3D book: shape, geometry, materials, textures, scene
   appearance/           settings, presets, the Appearance panel, the legibility guard
-  library/              library screen, cards, covers, editing details
+                        (covers and desks are listed in book3d/looks.ts, papers in book3d/paper.ts)
+  library/              the bookcase, the books on it (ShelfBook.tsx), covers, editing details
+  ui/                   toasts and the moth mark (the look of the room is in index.css)
   db/schema.ts          IndexedDB tables
 ```
 
@@ -80,12 +85,13 @@ A reading position is an `Anchor` (chapter, block, character offset), not a page
 - A turning page is a bending sheet driven by a damped spring, lit from behind so light passes through it, casting a shadow on the page below (`BookRig.ts`).
 - The scene has an HDRI environment, one warm shadow-casting light, ambient occlusion, a little bloom and vignette, depth of field on High, and filmic tone mapping (`Scene.tsx`).
 - The scene only redraws while something is moving, so an open book at rest costs almost nothing.
-- Quality is High, Balanced or Light, or Auto. Auto starts from a guess about the device, measures page turns and steps down if they are slow. If even Light is slow, or WebGL is missing, Lumen switches to the flat book and offers a way back.
+- Night light fades the room light and the environment down to faint moonlight and brings up a desk lamp just out of view at the back left. The lamp is a wide, fully soft spotlight with inverse-square falloff, so the pool of light is shaped by distance and the room darkens gradually. Only one of the two lights casts shadows once the fade is over.
+- Quality is High, Balanced or Light, or Auto. Auto starts from a guess about the device, measures page turns and steps down if they are slow. If even Light is slow, or WebGL is missing, Bookmoth switches to the flat book and offers a way back.
 - On a screen taller than it is wide the camera shows one page at a time and moves across the spread.
 
 ### PDFs
 
-PDFs store positioned glyphs, not paragraphs. `import/pdf.ts` gathers glyphs into lines, drops running heads and page numbers, joins lines into paragraphs, mends words hyphenated at line ends and treats larger type as headings. A PDF with almost no text is taken for a scan: Lumen explains why and opens it in the page-by-page viewer.
+PDFs store positioned glyphs, not paragraphs. `import/pdf.ts` gathers glyphs into lines, drops running heads and page numbers, joins lines into paragraphs, mends words hyphenated at line ends and treats larger type as headings. A PDF with almost no text is taken for a scan: Bookmoth explains why and opens it in the page-by-page viewer.
 
 ## Checked
 
@@ -99,6 +105,12 @@ Driven in headless Chromium at 1440×900 and at 390×844 with touch:
 
 ## Known limitations
 
+- **The library database is still called `lumen`** inside the browser (the app's working name before Bookmoth), so libraries made before the rename carry over.
+- **IM Fell English has no bold and Lexend no italic**; the browser synthesises them.
+- **Night light, the bookcase, and the new covers, desks and papers were checked by eye in Chromium only.**
+- **Opening a book on the shelf needs a mouse.** On touch screens a tap goes straight to reading. The first-page preview is small; it is a peek, not a place to read.
+- **The bookcase is drawn with CSS 3D**, not the WebGL scene used for reading, so its books are simpler than the 3D book.
+
 - **Performance on real phones is not measured.** Frame rates were only checked on a laptop GPU. The 60 fps target for Balanced on a mid-range phone is untested; the automatic step-down is the safety net.
 - **Only Chromium was tested.** Safari and Firefox have not been run. Canvas `letterSpacing` (running heads, cover title) is ignored by older Safari versions.
 - **DOCX was checked with one simple generated file** (headings, paragraphs, italics). Real-world Word documents with tables, text boxes or tracked changes are untested.
@@ -110,10 +122,10 @@ Driven in headless Chromium at 1440×900 and at 390×844 with touch:
 - **Slider jumps by keyboard give no "Go back" prompt**; jumps by pointer and from Contents do.
 - **Removing a book** is undoable for a few seconds; after that the file is deleted from the browser.
 - **Storage is the browser's.** Clearing site data removes the library. Very large libraries may hit the browser's quota; there is no warning for that yet.
-- **Full-size textures are large** (54 MB in `public/assets`). Only the sets in use are downloaded, and Balanced and Light use the half-size copies, but there is no modern compressed format (KTX2) yet.
+- **Full-size textures are large** (146 MB in `public/assets`). Only the sets in use are downloaded, and Balanced and Light use the half-size copies, but there is no modern compressed format (KTX2) yet.
 - Right-to-left and vertical scripts are not supported. Chinese, Japanese and Korean text wraps per character without line-breaking rules.
 - No OCR, no DRM removal, no accounts or sync.
 
 ## Credits
 
-Textures and HDRI from [Poly Haven](https://polyhaven.com) (CC0). Fonts: EB Garamond, Literata, Lora, Atkinson Hyperlegible, Inter and OpenDyslexic, all under open licences. Sample text from [Project Gutenberg](https://www.gutenberg.org).
+Textures and HDRI from [Poly Haven](https://polyhaven.com) (CC0). Fonts: EB Garamond, Literata, Lora, Libre Baskerville, Crimson Pro, Merriweather, IM Fell English, Atkinson Hyperlegible, Inter, Lexend, Courier Prime and OpenDyslexic, all under open licences. Sample text from [Project Gutenberg](https://www.gutenberg.org).

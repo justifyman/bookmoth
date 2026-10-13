@@ -8,14 +8,15 @@ import * as THREE from 'three'
 import { BookRig } from './BookRig'
 import type { PageSource } from './BookRig'
 import { DEFAULT_DIMS } from './bookShape'
+import { COVERS, DESKS } from './looks'
+import type { CoverKind, DeskKind } from './looks'
 import { prepareSet } from './materials'
 import type { CoverLook, TextureSet } from './materials'
 import { QUALITY } from './quality'
 import type { Quality } from './quality'
 import type { PaperStyle } from './textures'
 
-export type CoverKind = 'leather' | 'cloth' | 'linen'
-export type DeskKind = 'wood' | 'worn' | 'hessian'
+export type { CoverKind, DeskKind } from './looks'
 
 export interface SceneSettings {
   cover: CoverKind
@@ -23,6 +24,8 @@ export interface SceneSettings {
   desk: DeskKind
   quality: Quality
   open: boolean
+  /** night light: a dark room with one lamp over the book */
+  night?: boolean
 }
 
 /** Which part of the open book fills the screen: both pages, or one page on narrow screens. */
@@ -48,19 +51,6 @@ export interface BookFeed {
 export interface SceneApi {
   /** turns a whole page with the full animation */
   flip: (dir: 1 | -1) => void
-}
-
-const COVER_TEXTURES: Record<CoverKind, string> = { leather: 'brown_leather', cloth: 'book_pattern', linen: 'rough_linen' }
-const COVER_LOOKS: Record<CoverKind, Omit<CoverLook, 'set'>> = {
-  leather: { repeat: 0.62, tint: '#b98f7c', gray: 0, wear: 1, normalScale: 1.3, foil: 1 },
-  cloth: { repeat: 0.5, tint: '#ffffff', gray: 0, wear: 0.8, normalScale: 1.6, foil: 1 },
-  linen: { repeat: 0.55, tint: '#f2cf9c', gray: 1, wear: 0.55, normalScale: 1.8, foil: 0 },
-}
-/** desk texture folder and how many scene units one tile covers */
-const DESKS: Record<DeskKind, { folder: string; tile: number; roughness: number }> = {
-  wood: { folder: 'wood_table_001', tile: 9, roughness: 0.5 },
-  worn: { folder: 'wood_table_worn', tile: 9, roughness: 0.68 },
-  hessian: { folder: 'hessian_230', tile: 2.3, roughness: 0.95 },
 }
 
 const ASSETS = `${import.meta.env.BASE_URL}assets`
@@ -99,6 +89,84 @@ function useTextureSet(folder: string, res: '2k' | '1k') {
 
 const LIGHT_POS = new THREE.Vector3(-2.4, 5.6, -2.6)
 const LIGHT_COLOR = new THREE.Color('#ffe8cf')
+const LIGHT_INTENSITY = 2.7
+const ENVIRONMENT = 0.5
+const ROOM = new THREE.Color('#0d0907')
+// Night light. A desk lamp stands just out of view at the back left:
+// its light is brightest on the desk beside it and thins out with distance the way
+// real light does, so the room falls away gradually instead of being cut off. A
+// little cool moonlight keeps the shadows from going flat black.
+const MOON_COLOR = new THREE.Color('#7f94cf')
+const MOON_INTENSITY = 0.16
+const NIGHT_ENVIRONMENT = 0.045
+const NIGHT_ROOM = new THREE.Color('#040304')
+const LAMP_POS = new THREE.Vector3(-2.4, 2.9, -2.0)
+const LAMP_TARGET = new THREE.Vector3(0.25, 0, 0.3)
+const LAMP_COLOR = new THREE.Color('#ffb066')
+const LAMP_INTENSITY = 54
+
+/** How far the scene has faded into night, from 0 to 1. Shared by the lights and the book. */
+type Mood = { current: { night: number } }
+
+function Lighting({ night, quality, mood }: { night: boolean; quality: Quality; mood: Mood }) {
+  const q = QUALITY[quality]
+  const scene = useThree((s) => s.scene)
+  const invalidate = useThree((s) => s.invalidate)
+  const sun = useRef<THREE.DirectionalLight>(null)
+  const lamp = useRef<THREE.SpotLight>(null)
+  useEffect(() => {
+    const l = lamp.current
+    if (l) {
+      l.target.position.copy(LAMP_TARGET)
+      l.target.updateMatrixWorld()
+    }
+    invalidate()
+  }, [night, invalidate])
+  useFrame((_, dt) => {
+    const m = mood.current
+    const want = night ? 1 : 0
+    if (m.night !== want) {
+      const step = Math.min(dt, 1 / 30) / 0.9
+      m.night = Math.abs(want - m.night) <= step ? want : m.night + Math.sign(want - m.night) * step
+      invalidate()
+    }
+    const n = m.night * m.night * (3 - 2 * m.night)
+    if (sun.current) {
+      sun.current.intensity = THREE.MathUtils.lerp(LIGHT_INTENSITY, MOON_INTENSITY, n)
+      sun.current.color.lerpColors(LIGHT_COLOR, MOON_COLOR, n)
+      // only one light throws shadows at a time, except while one fades into the other
+      sun.current.castShadow = n < 1
+    }
+    if (lamp.current) {
+      lamp.current.visible = n > 0
+      lamp.current.intensity = LAMP_INTENSITY * n
+    }
+    scene.environmentIntensity = THREE.MathUtils.lerp(ENVIRONMENT, NIGHT_ENVIRONMENT, n)
+    if (scene.background instanceof THREE.Color) scene.background.lerpColors(ROOM, NIGHT_ROOM, n)
+    if (scene.fog) scene.fog.color.lerpColors(ROOM, NIGHT_ROOM, n)
+  })
+  return (
+    <>
+      <directionalLight
+        ref={sun}
+        position={LIGHT_POS}
+        castShadow
+        shadow-mapSize={[q.shadowMap, q.shadowMap]}
+        shadow-bias={-0.0004}
+        shadow-normalBias={0.012}
+        shadow-radius={q.shadowRadius}
+        shadow-camera-left={-2.8}
+        shadow-camera-right={2.8}
+        shadow-camera-top={2.8}
+        shadow-camera-bottom={-2.8}
+        shadow-camera-near={1}
+        shadow-camera-far={14}
+      />
+      {/* a wide, fully soft cone: what shapes the pool of light is distance, not the edge of the beam */}
+      <spotLight ref={lamp} position={LAMP_POS} color={LAMP_COLOR} angle={1.12} penumbra={1} decay={2} visible={false} castShadow shadow-mapSize={[q.shadowMap, q.shadowMap]} shadow-bias={-0.0008} shadow-normalBias={0.03} shadow-radius={q.shadowRadius * 2.5} shadow-camera-near={0.5} shadow-camera-far={12} />
+    </>
+  )
+}
 // ?elev= and ?zoom= let a developer inspect the book from other angles
 const debug = new URLSearchParams(location.search)
 const VIEW_ELEVATION = (Number(debug.get('elev') ?? 63) * Math.PI) / 180
@@ -127,22 +195,31 @@ export function pageHeightOnScreen(width: number, height: number, single: boolea
 function Desk({ kind, res }: { kind: DeskKind; res: '2k' | '1k' }) {
   const invalidate = useThree((s) => s.invalidate)
   const loaded = useTextureSet(DESKS[kind].folder, res)
-  const desk = Object.values(DESKS).find((d) => d.folder === loaded?.folder)
+  // the desk shown is the one whose textures have arrived; until then the previous one stays
+  const [shown, setShown] = useState<{ kind: DeskKind; maps: TextureSet } | null>(null)
   useEffect(() => {
-    if (!loaded || !desk) return
-    for (const t of [loaded.set.albedo, loaded.set.normal, loaded.set.arm]) {
-      t.repeat.setScalar(60 / desk.tile)
+    if (!loaded || loaded.folder !== DESKS[kind].folder) return
+    // copies, because a cover may be using the same pictures at another scale
+    const maps = { albedo: loaded.set.albedo.clone(), normal: loaded.set.normal.clone(), arm: loaded.set.arm.clone() }
+    for (const t of [maps.albedo, maps.normal, maps.arm]) {
+      t.repeat.setScalar(60 / DESKS[kind].tile)
       // grain runs across the desk, left to right
       t.rotation = Math.PI / 2
+      t.needsUpdate = true
     }
+    setShown({ kind, maps })
     invalidate()
-  }, [loaded, desk, invalidate])
-  if (!loaded || !desk) return null
+    return () => {
+      for (const t of [maps.albedo, maps.normal, maps.arm]) t.dispose()
+    }
+  }, [loaded, kind, invalidate])
+  if (!shown) return null
+  const desk = DESKS[shown.kind]
   return (
     <mesh rotation-x={-Math.PI / 2} receiveShadow>
       <planeGeometry args={[60, 60]} />
       {/* a satin finish: the scanned gloss map gives harsh glints under the lamp */}
-      <meshStandardMaterial key={loaded.folder} map={loaded.set.albedo} normalMap={loaded.set.normal} normalScale={[0.5, 0.5]} aoMap={loaded.set.arm} roughness={desk.roughness} metalness={0} color="#b9b0aa" envMapIntensity={0.55} />
+      <meshStandardMaterial key={shown.kind} map={shown.maps.albedo} normalMap={shown.maps.normal} normalScale={[desk.relief, desk.relief]} aoMap={shown.maps.arm} roughness={desk.roughness} metalness={0} color={desk.color} envMapIntensity={0.55} />
     </mesh>
   )
 }
@@ -156,19 +233,30 @@ interface BookProps {
   onFrameRate?: (fps: number) => void
 }
 
-function Book({ settings, feed, apiRef, instantOpen, onReady, onFrameRate }: BookProps) {
+interface BookInnerProps extends BookProps {
+  mood: Mood
+}
+
+function Book({ settings, feed, apiRef, instantOpen, onReady, onFrameRate, mood }: BookInnerProps) {
   const gl = useThree((s) => s.gl)
   const camera = useThree((s) => s.camera) as THREE.PerspectiveCamera
   const size = useThree((s) => s.size)
   const invalidate = useThree((s) => s.invalidate)
   const q = QUALITY[settings.quality]
 
-  const coverSet = useTextureSet(COVER_TEXTURES[settings.cover], q.textures)
-  const look = useMemo(() => {
-    if (!coverSet) return null
-    const kind = (Object.keys(COVER_TEXTURES) as CoverKind[]).find((k) => COVER_TEXTURES[k] === coverSet.folder)!
-    return { ...COVER_LOOKS[kind], set: coverSet.set } as CoverLook
-  }, [coverSet])
+  // the look in use changes once the chosen cover's textures have arrived
+  const [look, setLook] = useState<CoverLook | null>(null)
+  useEffect(() => {
+    let alive = true
+    const { folder, label: _label, swatch: _swatch, ...params } = COVERS[settings.cover]
+    loadSet(folder, q.textures).then(
+      (set) => alive && setLook({ ...params, set }),
+      () => {},
+    )
+    return () => {
+      alive = false
+    }
+  }, [settings.cover, q.textures])
 
   const live = useRef({ settings, feed, instantOpen, onReady, onFrameRate })
   const lookRef = useRef(look)
@@ -385,6 +473,8 @@ function Book({ settings, feed, apiRef, instantOpen, onReady, onFrameRate }: Boo
   }
 
   const lightDir = useMemo(() => new THREE.Vector3(), [])
+  const lightColor = useMemo(() => new THREE.Color(), [])
+  const lampDir = useMemo(() => LAMP_POS.clone().normalize(), [])
   const target = useMemo(() => new THREE.Vector3(), [])
   const view = useRef<{ x: number; single: number } | null>(null)
   const ready = useRef(false)
@@ -414,8 +504,10 @@ function Book({ settings, feed, apiRef, instantOpen, onReady, onFrameRate }: Boo
     camera.position.set(target.x, target.y + Math.sin(VIEW_ELEVATION) * dist, target.z + Math.cos(VIEW_ELEVATION) * dist)
     camera.lookAt(target)
 
-    lightDir.copy(LIGHT_POS).normalize().transformDirection(camera.matrixWorldInverse)
-    rig.setLight(lightDir, LIGHT_COLOR)
+    // the light that glows through a turning page: the room light by day, the lamp at night
+    const night = mood.current.night
+    lightDir.copy(LIGHT_POS).normalize().lerp(lampDir, night).normalize().transformDirection(camera.matrixWorldInverse)
+    rig.setLight(lightDir, lightColor.lerpColors(LIGHT_COLOR, LAMP_GLOW, night))
 
     if (!ready.current) {
       ready.current = true
@@ -436,6 +528,8 @@ function Book({ settings, feed, apiRef, instantOpen, onReady, onFrameRate }: Boo
   return rig ? <primitive object={rig.group} /> : null
 }
 
+const LAMP_GLOW = LAMP_COLOR.clone().multiplyScalar(1.5)
+
 const blanks = new WeakMap<BookRig, THREE.Texture>()
 function blank(rig: BookRig) {
   let t = blanks.get(rig)
@@ -449,6 +543,8 @@ function blank(rig: BookRig) {
 
 export function BookScene(props: BookProps) {
   const q = QUALITY[props.settings.quality]
+  const night = !!props.settings.night
+  const mood = useRef({ night: night ? 1 : 0 })
   return (
     <Canvas
       // the renderer's own smoothing cannot be changed once it exists
@@ -463,32 +559,17 @@ export function BookScene(props: BookProps) {
     >
       <color attach="background" args={['#0d0907']} />
       <fog attach="fog" args={['#0d0907', 9, 24]} />
-      <directionalLight
-        position={LIGHT_POS}
-        color={LIGHT_COLOR}
-        intensity={2.7}
-        castShadow
-        shadow-mapSize={[q.shadowMap, q.shadowMap]}
-        shadow-bias={-0.0004}
-        shadow-normalBias={0.012}
-        shadow-radius={q.shadowRadius}
-        shadow-camera-left={-2.8}
-        shadow-camera-right={2.8}
-        shadow-camera-top={2.8}
-        shadow-camera-bottom={-2.8}
-        shadow-camera-near={1}
-        shadow-camera-far={14}
-      />
+      <Lighting night={night} quality={props.settings.quality} mood={mood} />
       <Suspense fallback={null}>
-        <Environment files={`${ASSETS}/hdri/wooden_lounge.hdr`} environmentIntensity={0.5} />
+        <Environment files={`${ASSETS}/hdri/wooden_lounge.hdr`} environmentIntensity={ENVIRONMENT} />
       </Suspense>
       <Desk kind={props.settings.desk} res={q.textures} />
-      <Book {...props} />
+      <Book {...props} mood={mood} />
       {q.post && (
         <EffectComposer multisampling={q.msaa}>
           <N8AO aoRadius={0.3} intensity={2.4} distanceFalloff={0.8} halfRes={q.halfResAO} quality="medium" />
           {q.dof ? <DepthOfField target={[0, 0.1, 0.1]} worldFocusRange={2.6} bokehScale={2.4} /> : <></>}
-          <Bloom intensity={0.12} luminanceThreshold={0.92} mipmapBlur />
+          <Bloom intensity={night ? 0.16 : 0.12} luminanceThreshold={0.92} mipmapBlur />
           <Vignette offset={0.28} darkness={0.62} />
           <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
         </EffectComposer>

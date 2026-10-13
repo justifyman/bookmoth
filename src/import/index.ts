@@ -1,6 +1,6 @@
 import { db } from '../db/schema'
 import type { BookFormat, BookRecord } from '../db/schema'
-import { START, normalizeContent } from '../model/document'
+import { START, normalizeContent, openingOf } from '../model/document'
 import type { BookContent } from '../model/document'
 import { showToast } from '../ui/toasts'
 import { fromFileName } from './metadata'
@@ -126,7 +126,7 @@ async function importOne(file: File, record: BookRecord, onDuplicate: (d: Duplic
 
     await db.transaction('rw', db.books, db.contents, async () => {
       await db.contents.put({ bookId: id, content })
-      await db.books.update(id, { ...common, status: 'ready' })
+      await db.books.update(id, { ...common, status: 'ready', opening: openingOf(content) })
     })
   } catch (e) {
     const problem = e instanceof ImportProblem ? e.problem : PROBLEMS.unknown()

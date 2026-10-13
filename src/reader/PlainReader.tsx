@@ -3,7 +3,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { FONTS, THEMES } from '../appearance/settings'
 import { anchorOfPage, pageOfAnchor } from '../pagination/paginate'
 import type { PageGeometry, TypeSettings } from '../pagination/types'
-import { legibleInk } from '../appearance/contrast'
+import { legibleInk, mix } from '../appearance/contrast'
 import { useTapZones } from './gestures'
 import { PageView } from './PageView'
 import type { ModeHandle, ModeProps } from './modes'
@@ -56,11 +56,33 @@ export const PlainReader = forwardRef<ModeHandle, ModeProps>(function PlainReade
   // taps on the edges turn the page, a tap in the middle shows the menus, a sideways swipe turns too
   const gestures = useTapZones((dir) => go(page + dir), onToggleChrome)
 
+  // glass: two pools of one colour glow through the background
+  const [g1, g2] = theme.glows
+  const backdrop = `radial-gradient(70vmax 56vmax at 8% -8%, ${g1}, transparent 64%), radial-gradient(64vmax 54vmax at 96% 108%, ${g2}, transparent 62%), ${theme.background}`
+  // the text must read clearly even where the strongest glow sits right behind the pane
+  const ink = legibleInk(legibleInk(theme.text, theme.background), mix(g1, theme.background, 0.35), 5.5)
+
   const current = pagination?.pages[page]
   const chapterTitle = current ? content.chapters[current.chapter]?.title : ''
 
   return (
-    <div ref={boxRef} className="group/page absolute inset-0 touch-pan-y overflow-hidden select-none" style={{ background: theme.background, color: legibleInk(theme.text, theme.background) }} {...gestures}>
+    <div ref={boxRef} className="group/page absolute inset-0 touch-pan-y overflow-hidden select-none" style={{ background: backdrop, color: ink }} {...gestures}>
+      {/* the frosted pane the text sits on */}
+      {geometry && size && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-[28px]"
+          style={{
+            width: geometry.width + 2 * Math.min(44, Math.max(10, (size.width - geometry.width) / 2 - 8)),
+            height: geometry.height + (size.height < 560 ? 28 : 56),
+            background: theme.pane,
+            backdropFilter: 'blur(26px) saturate(1.4)',
+            WebkitBackdropFilter: 'blur(26px) saturate(1.4)',
+            border: `1px solid ${theme.edge}`,
+            boxShadow: `inset 0 1px 0 ${theme.edge}, 0 18px 50px -24px rgb(0 0 0 / ${theme.dark ? 0.7 : 0.28})`,
+          }}
+        />
+      )}
       {geometry && (
         <div className="absolute inset-0 flex items-center justify-center">
           {current && pagination ? (

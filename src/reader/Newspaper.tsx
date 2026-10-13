@@ -195,7 +195,7 @@ export const Newspaper = forwardRef<ModeHandle, ModeProps>(function Newspaper({ 
                     <h2 className="line-clamp-2 font-bold" style={{ fontFamily: display, fontSize: f.headlineSize, lineHeight: 1.12 }}>
                       {headline}
                     </h2>
-                    <p className="mt-2 truncate text-[11px] tracking-[0.16em] uppercase">{author ? `By ${author}` : 'From the Lumen library'}</p>
+                    <p className="mt-2 truncate text-[11px] tracking-[0.16em] uppercase">{author ? `By ${author}` : 'From the Bookmoth library'}</p>
                   </div>
                 </>
               ) : (

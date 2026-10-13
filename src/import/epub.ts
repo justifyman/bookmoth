@@ -6,7 +6,7 @@ import { usable } from './metadata'
 import type { Imported } from './index'
 
 // epub.js unpacks the book and reads its manifest; the chapters are then converted
-// to Lumen's own blocks rather than shown through epub.js's renderer.
+// to Bookmoth's own blocks rather than shown through epub.js's renderer.
 
 interface TocItem {
   label: string

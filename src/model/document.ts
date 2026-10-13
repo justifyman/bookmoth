@@ -111,3 +111,31 @@ export function anchorAtProgress(content: BookContent, progress: number, lengths
   }
   return START
 }
+
+/** What a reader sees on opening the book: the first heading, if any, and the first few paragraphs. */
+export interface Opening {
+  heading: string
+  paragraphs: string[]
+}
+
+export function openingOf(content: BookContent, length = 900): Opening {
+  const opening: Opening = { heading: '', paragraphs: [] }
+  let used = 0
+  for (const chapter of content.chapters) {
+    for (const block of chapter.blocks) {
+      const text = blockText(block)
+      if (!text) continue
+      if (block.type === 'heading') {
+        if (!opening.heading && !opening.paragraphs.length) opening.heading = text
+        // the first page ends where the next part begins, unless it would be nearly empty
+        else if (used > 260) return opening
+        else opening.paragraphs.push(text)
+        continue
+      }
+      opening.paragraphs.push(text.slice(0, length - used))
+      used += text.length
+      if (used >= length) return opening
+    }
+  }
+  return opening
+}

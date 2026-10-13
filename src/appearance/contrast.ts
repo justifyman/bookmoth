@@ -1,4 +1,4 @@
-// Legibility guard. Every pairing of ink and paper that Lumen draws goes through
+// Legibility guard. Every pairing of ink and paper that Bookmoth draws goes through
 // `legibleInk`, so no combination of styles can leave text too faint to read.
 
 function channels(hex: string) {
@@ -35,6 +35,13 @@ export function legibleInk(ink: string, paper: string, min = MIN_CONTRAST) {
     if (contrast(mixed, paper) >= min) return mixed
   }
   return towards ? '#ffffff' : '#000000'
+}
+
+/** Colour `t` of the way from `a` to `b`. */
+export function mix(a: string, b: string, t: number) {
+  const ca = channels(a)
+  const cb = channels(b)
+  return `#${ca.map((v, i) => Math.round(v + (cb[i] - v) * t).toString(16).padStart(2, '0')).join('')}`
 }
 
 /** Text smaller than this on screen is hard to read for long. */
