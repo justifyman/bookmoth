@@ -1,0 +1,86 @@
+@import 'tailwindcss';
+
+/* Calm, warm colours for the library and menus. The book itself brings its own. */
+:root {
+  --bg: #f5f0e6;
+  --surface: #fffdf8;
+  --raised: #ffffff;
+  --ink: #2a241c;
+  --muted: #776d5f;
+  --line: #e4dccb;
+  --accent: #8a4b2a;
+  --accent-ink: #fffaf2;
+  --danger: #a33a2a;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14110e;
+    --surface: #1d1915;
+    --raised: #26211b;
+    --ink: #ece3d3;
+    --muted: #a0947f;
+    --line: #322b23;
+    --accent: #e0a36a;
+    --accent-ink: #1d1509;
+    --danger: #e8806e;
+  }
+}
+
+@theme {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-raised: var(--raised);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-danger: var(--danger);
+  --font-display: 'EB Garamond', Georgia, serif;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--ink) 7%, transparent) 25%, color-mix(in srgb, var(--ink) 14%, transparent) 50%, color-mix(in srgb, var(--ink) 7%, transparent) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.6s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+}
